@@ -153,12 +153,46 @@ function! s:compiler.build_cmd() abort dict " {{{1
   if self.continuous
     let l:cmd .= ' -pvc'
 
-    " Set viewer options
+    " set l:wid by refreshing xwin_id
+	if !executable('xdotool')
+	  let l:wid = 0
+	else
+   	  " If xwin_id is already set, check if it still exists
+	  let xdocmd = 'xdotool search --class ' . 'Zathura'
+	  let l:wid = get(get(b:vimtex, 'viewer', {}), 'xwin_id')
+	  if (l:wid > 0) && (index(split(system(xdocmd),'\n'),l:wid) < 0)
+		  let l:wid = 0
+	  endif
+	
+      " If xwin_id is unset, check if matching viewer windows exist
+      if l:wid > 0
+        if has_key(get(b:vimtex, 'viewer', {}), 'get_pid')
+          let xdocmd = 'xdotool search'
+                \ . ' --all --pid ' . b:vimtex.viewer.get_pid()
+                \ . ' --name ' . fnamemodify(b:vimtex.viewer.out(), ':t')
+          let l:wid = get(split(system(xdocmd), '\n'), 0)
+        else
+          let xdocmd = 'xdotool search --name ' . fnamemodify(v:vimtex.viewer.out(), ':t')
+          let ids = split(system(xdocmd), '\n')
+          let ids_already_used = filter(map(deepcopy(vimtex#state#list_all()),
+                \ "get(get(v:val, 'viewer', {}), 'xwin_id')"), 'v:val > 0')
+          for id in ids
+            if index(ids_already_used, id) < 0
+              let l:wid = id
+              break
+            endif
+          endfor
+        endif
+	  endif
+    endif
+
+	" Set viewer options
     if !get(g:, 'vimtex_view_automatic', 1)
-          \ || get(get(b:vimtex, 'viewer', {}), 'xwin_id') > 0
-          \ || get(s:, 'silence_next_callback', 0)
-      let l:cmd .= ' -view=none'
-    elseif g:vimtex_view_enabled
+          "\ || l:wid > 0
+          \ || get(s:, 'silence_next_callback', 1)
+
+		let l:cmd .= ' -view=none'
+    elseif g:vimtex_view_enabled || l:wid > 0
           \ && has_key(b:vimtex.viewer, 'latexmk_append_argument')
       let l:cmd .= b:vimtex.viewer.latexmk_append_argument()
     endif

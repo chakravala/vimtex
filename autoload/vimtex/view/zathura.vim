@@ -30,23 +30,6 @@ let s:zathura = {
       \}
 
 function! s:zathura.start(outfile) dict " {{{1
-  if g:vimtex_view_process_start
-    let l:cmd  = 'zathura'
-    let l:cmd .= ' -x "' . g:vimtex_compiler_progname
-          \ . ' --servername ' . v:servername
-          \ . ' --remote-expr '
-          \ .     '\"vimtex#view#reverse_goto(%{line}, ''%{input}'')\""'
-    if g:vimtex_view_forward_search_on_start
-      let l:cmd .= ' --synctex-forward '
-            \ .  line('.')
-            \ .  ':' . col('.')
-            \ .  ':' . vimtex#util#shellescape(expand('%:p'))
-    endif
-    let l:cmd .= ' ' . g:vimtex_view_zathura_options
-    let l:cmd .= ' ' . vimtex#util#shellescape(a:outfile)
-    let self.process = vimtex#process#start(l:cmd)
-  endif
-
   call self.xwin_get_id()
   let self.outfile = a:outfile
 endfunction
@@ -77,20 +60,7 @@ function! s:zathura.compiler_callback(status) dict " {{{1
 
   if !filereadable(self.out()) | return | endif
 
-  if g:vimtex_view_automatic
-    "
-    " Search for existing window created by latexmk
-    "   It may be necessary to wait some time before it is opened and
-    "   recognized. Sometimes it is very quick, other times it may take
-    "   a second. This way, we don't block longer than necessary.
-    "
-    if !has_key(self, 'started_through_callback') && g:vimtex_view_xwin_exists
-      for l:dummy in range(30)
-        sleep 50m
-        if self.xwin_exists() | break | endif
-      endfor
-    endif
-
+  if g:vimtex_view_automatic 
     if !self.xwin_exists() && !has_key(self, 'started_through_callback')
       call self.start(self.out())
       let self.started_through_callback = 1
